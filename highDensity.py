@@ -85,7 +85,7 @@ class highDensityRetrieval(object):
             v2 (Tuple[int,int]): _description_
         """
         if t not in self.e_table:
-            self.e_table=set()
+            self.e_table[t]=set()
        
         self.e_table[t].add(self.get_edge_obstacle(v1,v2))
         for n in self.graph.neighbors(v1):
@@ -219,7 +219,7 @@ class highDensityRetrieval(object):
            
         sol=dict()
         sol["paths"]=paths
-        with open("./full_paths.json","w") as fp:
+        with open("./demo/full_paths.json","w") as fp:
             json.dump(sol,fp)
         
     def parking_primitive(self):
@@ -241,10 +241,12 @@ class highDensityRetrieval(object):
         for agent in self.parking_agents:
             if len(self.plans[agent])==0:
                 self.plan_for_parking_agent(agent)
-        
-    
+
         for agent in self.retrival_agents:
-            self.move_agent(agent)
+            print("moving agent",agent)
+            flag=self.move_agent(agent)
+            if flag==False:
+                print("moving agent",agent,"failed")
         config=dict()
         for agent, path in self.plans.items():
             if len(path)==0:
@@ -253,30 +255,34 @@ class highDensityRetrieval(object):
             self.id_location[agent]=path[0]
             config[agent]=path[0]
             path.pop(0)
-        print(config)
+        # print(config)
         self.recorded_paths.append(config)
         
     def wait_agent(self,agent,curr=None):
         self.planned.add(agent)
         self.plans[agent]=[curr]
-        self.add_v_obstacle(curr)
+        self.add_v_obstacle(self.clock,curr)
         
     def forward_agent(self,agent,curr_v,next_v):
         self.planned.add(agent)
         self.plans[agent]=[next_v]
-        self.add_e_obstacle(curr_v,next_v)
-        self.add_v_obstacle(curr_v)
+        self.add_e_obstacle(self.clock,curr_v,next_v)
+        self.add_v_obstacle(self.clock,curr_v)
     
     def move_agent(self,agent,direction=None):
+        if agent not in self.plans:
+            self.plans[agent]=[]
         if agent is None:
             return True
         if agent <0:
             return False
         if agent in self.planned: 
+            print("agent ",agent," is planned")
             return False
         if agent in self.retrival_agents:
+            
             v=self.id_location[agent]
-            if v[1]<=self.instance.ymax-3:
+            if v[1]<self.instance.ymax-3:
                 next_v=(v[0],v[1]+1)
                 next_next_v=(v[0],v[1]+2)
                 if next_next_v in self.location_id:
@@ -287,7 +293,7 @@ class highDensityRetrieval(object):
                     self.move_agent(block_agent)
                     self.wait_agent(agent,v)
                     return False
-                elif self.get_edge_obstacle(v,next_v) in self.e_table[self.clock]:
+                elif self.clock in self.e_table and self.get_edge_obstacle(v,next_v) in self.e_table[self.clock]:
                     self.planned.add(agent)
                     self.plans[agent]=[v]
                     self.wait_agent(agent,v)
@@ -313,6 +319,17 @@ class highDensityRetrieval(object):
                 self.planned.add(agent)
                 
                 return True
+            elif v==self.retrival_agents[agent]:
+                return True
+            elif len(self.plans[agent])!=0:
+                next_v=self.plans[agent][0]
+                if next_v==v:
+                    self.wait_agent(agent,v)
+                    return False
+                else:
+                    self.forward_agent(agent,v,next_v)
+                    return True
+                
 
             else:
                 return False
@@ -334,8 +351,10 @@ class highDensityRetrieval(object):
             
             if (direction is None or direction=="left") and self.move_agent(left_agent,"left")==True:
                 next_v=(v[0]-1,v[1])
-                
-                if self.get_edge_obstacle(v,next_v) not in self.e_table[self.clock] and next_v not in self.reserved_slots:
+                e_obs=dict()
+                if self.clock in self.e_table:
+                    e_obs=self.e_table[self.clock]
+                if self.get_edge_obstacle(v,next_v) not in e_obs and next_v not in self.reserved_slots:
                     self.forward_agent(agent,v,next_v)
                     # self.plans[agent]=[]
                     self.location_id.pop(v)
@@ -344,7 +363,10 @@ class highDensityRetrieval(object):
                     return True
             elif (direction is None or direction=="right") and self.move_agent(right_agent,"right")==True:
                 next_v=(v[0]+1,v[1])
-                if self.get_edge_obstacle(v,next_v) not in self.e_table[self.clock] and next_v not in self.reserved_slots:
+                e_obs=dict()
+                if self.clock in self.e_table:
+                    e_obs=self.e_table[self.clock]
+                if self.get_edge_obstacle(v,next_v) not in e_obs and next_v not in self.reserved_slots:
                     self.forward_agent(agent,v,next_v)
                     # self.plans[agent]=[(v[0]+1,v[1])]
                     self.location_id.pop(v)
@@ -353,7 +375,7 @@ class highDensityRetrieval(object):
                     return True
             else:
 
-                print(agent,"cannot move")
+                print(agent,"cannot move, it is at",v,direction)
                 return False
             
 

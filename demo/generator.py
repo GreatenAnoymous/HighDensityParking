@@ -203,6 +203,6 @@ if __name__=="__main__":
     #generate_instance()
     # high_density_demo()
     # wellformed_simple_demo()
-    # full_only_retrieval()
-    full_only_retrieval_one()
+    full_only_retrieval()
+    # full_only_retrieval_one()
     # generate_debug_demo()

@@ -168,7 +168,7 @@ class Animation:
                                     blit=True,repeat=False)
         #self.show()
         # FFwriter = animation.FFMpegWriter(fps=10)
-        self.anim.save('high-density.mp4',fps=20)
+        # self.anim.save('high-density.mp4',fps=20)
 	
 	
 
