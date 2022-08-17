@@ -179,24 +179,25 @@ class TimedSpaceAstar(object):
     
 
 class TimedSpaceAstarPlus(object):
-    def __init__(self,graph:nx.Graph,start,goal,v_table,e_table):
+    def __init__(self,graph:nx.Graph,start,goal,v_table,e_table,start_time=0):
         self.graph=graph
         self.start=start
         self.goal=goal
         self.v_table=v_table
         self.e_table=e_table
+        self.start_time=start_time
         # self.max_time=max_time
 
     def search(self):
         openList=PriorityQueue()
-        root=AStarNode(self.start,manhattan_distance(self.start,self.goal),0,None)
+        root=AStarNode(self.start,manhattan_distance(self.start,self.goal),self.start_time,None)
         openList.put(root)
         closed=set()
         # print("searching",self.start,self.goal)
         while not openList.empty():
             best=openList.get()
             print(best.loc,"t=",best.t,"f=",best.f,self.goal,best.loc)
-            if best.loc==self.goal and best.t>=self.max_time:
+            if best.loc==self.goal:
                 print("found solutions")
                 path=[]
                 current_v=best
@@ -226,7 +227,7 @@ class TimedSpaceAstarPlus(object):
                     edgeObs=(best.loc,nbr)
                 else:
                     edgeObs=(nbr,best.loc)
-                if t1 in self.v_table and edgeObs in self.e_table[t1]:
+                if t1 in self.e_table and edgeObs in self.e_table[t1]:
                     continue
                 childNode=AStarNode(nbr,t1+manhattan_distance(nbr,self.goal),t1,best)
                 openList.put(childNode)
