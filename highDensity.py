@@ -9,7 +9,7 @@ from search import AStarSearch, TimedSpaceAstar,TimedSpaceAstarPlus
 
 WELL_FORMED=1
 HIGH_DENSITY=0
-HORIZON=500
+HORIZON=50
 MAX_AGENT_ID=200
 
 
@@ -22,7 +22,8 @@ class highDensityRetrieval(object):
         self.v_table=dict()
         self.e_table=dict()
         self.max_constraint_time=0
-
+        self.row_count=dict()
+        self.column_count=dict()
         self.recorded_paths=[]
         self.used_empty_slots=set()
         self.reserved_slots=set()
@@ -35,17 +36,28 @@ class highDensityRetrieval(object):
             self.retrival_agents[agent.id]=agent.goal
             self.location_id[agent.loc]=agent.id
             self.id_location[agent.id]=agent.loc
-        assert(len(self.instance.parking_agents)==0)
+        # assert(len(self.instance.parking_agents)==0)
         for agent in self.instance.already_parked_agents:
             self.location_id[agent.loc]=agent.id
             self.id_location[agent.id]=agent.loc
+        print("already parked cars num=",len(self.instance.already_parked_agents))
+        for agent in self.instance.parking_agents:
+            self.location_id[agent.loc]=agent.id
+            self.id_location[agent.id]=agent.loc
+            self.parking_agents[agent.id]=agent.loc
+        print("cars need to be parked num=",len(self.instance.parking_agents))
         self.plans=dict()
         self.planned=set()
         # print(self.id_location)
         # exit(0)
 
    
-
+    def count_num_robots_at_row(self,row):
+        num=0
+        for i in range(0,self.instance.xmax):
+            if (i,row) in self.id_location:
+                num=num+1
+        return num
 
     #add vertex obstacle
     def add_v_obstacle(self,t:int,v:Tuple[int,int]):
@@ -116,41 +128,54 @@ class highDensityRetrieval(object):
     def find_empty_slot(self,current_pos):
         xc,yc=current_pos
         for y in range(self.instance.ymax-3,-1,-1):
+            if self.count_num_robots_at_row(y)>=self.instance.xmax-2:
+                continue
             open=[(xc,y)]
+            visited=set()
             while len(open)!=0:
                 curr=open.pop(0)
+                visited.add(curr)
                 if curr not in self.location_id and curr not in self.reserved_slots and curr not in self.used_empty_slots:
                     self.used_empty_slots.add(curr)
                     return curr
                 right=(curr[0]+1,curr[1])
-                if right[0]<=self.instance.xmax-1:
+                if right[0]<self.instance.xmax-1 and right not in visited:
                     open.append(right)
                 left=(curr[0]-1,curr[1])
-                if left[0]>=1:
+                if left[0]>=1 and left not in visited:
                     open.append(left)
         return None
 
     #bring an escort to column 
     def bring_escort_to_column(self,escort:Tuple[int,int],desired_column:int):
         xe,ye=escort
+        
         if xe==desired_column:
             return
         if xe<desired_column:
             dx=1
         elif xe>desired_column:
             dx=-1
-        curr=escort
+        curr=xe
+        # curr=xe+dx
         while curr!=desired_column:
             #parking first
-            assert((curr,ye) in self.location_id)
-            robot=self.location_id[(curr,ye)]
-            if robot in self.planned:
+            print((curr,ye),desired_column,"bring to escort")
+            # print((curr,xe))
+            if (curr+dx,ye) not in self.location_id:
+                print((curr+dx,ye), "not in dict")
                 return 
-            next_v=(curr[0]-dx,curr[1])
-            if next_v in self.v_table[self.clock]:
+            robot=self.location_id[(curr+dx,ye)]
+            if robot in self.planned:
+                print(robot,"already planned line 162")
+                return 
+            next_v=(curr,ye)
+            if self.clock+1 in self.v_table and next_v in self.v_table[self.clock+1]:
+                print("collisions",(curr+dx,ye),"to",next_v,"already occupied")
                 return
-            self.forward_agent(robot,(curr,ye),next_v)
+            self.forward_agent(robot,(curr+dx,ye),next_v)
             curr=curr+dx
+            print("curr=",curr)
             # self.plans[robot]=[()]
             # self.planned.add(robot)
 
@@ -163,12 +188,16 @@ class highDensityRetrieval(object):
         ys=ye
         while ys<yc:
             ys=ys+1
-            assert((xe,ys) in self.location_id)
+            # if (xe,ys) not in self.location_id:
+            #     print(escort,(xe,ys),(xe,ys) in self.used_empty_slots)
+            # assert((xe,ys) in self.location_id)
+            if (xe,ys) not in self.location_id:
+                return False
             robot=self.location_id[(xe,ys)]
             if robot in self.planned:
                 return False
             next_v=(xe,ys-1)
-            if next_v in self.v_table[self.clock]:
+            if (self.clock+1) in self.v_table and next_v in self.v_table[self.clock+1]:
                 return False
             self.forward_agent(robot,(xe,ys),next_v)
 
@@ -178,12 +207,19 @@ class highDensityRetrieval(object):
 
     def plan_for_parking_agent(self,agent):
         curr=self.id_location[agent]
+        if curr in self.instance.all_slots:
+            self.parking_agents.pop(agent)
+            if curr in self.reserved_slots:
+                self.reserved_slots.remove(curr)
+            return
         escort=self.find_empty_slot_at_column(curr)
         if escort is not None:
+            print("the escort is", escort,"for agent ",agent,"at",curr)
             flag=self.bring_escort_to_port(escort,curr)
             if flag==True:
                 solver=TimedSpaceAstarPlus(self.graph,curr,(curr[0],self.instance.ymax-3),self.v_table,self.e_table)
                 path=solver.search()
+            
                 self.plans[agent]=path[1:]
                 self.reserve_path(path)
             else:
@@ -192,6 +228,7 @@ class highDensityRetrieval(object):
         elif escort is None:
             escort=self.find_empty_slot(curr)
             if escort is not None:
+                print("the escort X is", escort,"for agent ",agent,"at",curr)
                 self.bring_escort_to_column(escort,curr[0])
             
 
@@ -202,25 +239,33 @@ class highDensityRetrieval(object):
         for agent,v in self.retrival_agents.items():
             if self.id_location[agent]!=v:
                 return False
+        for agent,start in self.parking_agents.items():
+            v=self.id_location[agent]
+            if v not in self.instance.all_slots:
+                return False
+            
         return True
 
     def retrieval_path(self):
-        num_agents=len(self.instance.retrieval_agents)+len(self.instance.already_parked_agents)
+        num_agents=len(self.instance.retrieval_agents)+len(self.instance.already_parked_agents)+len(self.instance.parking_agents)
         paths=[[] for i in range(num_agents)]
         for agent in self.instance.retrieval_agents:
             paths[agent.id].append(agent.loc)
         for agent in self.instance.already_parked_agents:
             paths[agent.id].append(agent.loc)
+        for agent in self.instance.parking_agents:
+            paths[agent.id].append(agent.loc)
         for config in self.recorded_paths:
             for p in paths:
                 p.append(p[-1])
             for i, v in config.items():
-              
+                print(i,v)
                 paths[i][-1]=v
            
         sol=dict()
         sol["paths"]=paths
-        with open("./demo/full_paths.json","w") as fp:
+        file_name="./demo/parking_retrieval_paths.json"
+        with open(file_name,"w") as fp:
             json.dump(sol,fp)
         
     def parking_primitive(self):
@@ -235,12 +280,14 @@ class highDensityRetrieval(object):
                 print(self.clock)
                 print("all agents arrive at goals")
                 break
+            print("*******************************")
         self.retrieval_path()
 
     def mainloop(self):
         self.planned.clear()
-        for agent in self.parking_agents:
-            if len(self.plans[agent])==0:
+        self.used_empty_slots.clear()
+        for agent in self.parking_agents.copy():
+            if  agent not in self.plans or len(self.plans[agent])==0:
                 self.plan_for_parking_agent(agent)
 
         for agent in self.retrival_agents:
@@ -268,7 +315,9 @@ class highDensityRetrieval(object):
         self.planned.add(agent)
         self.plans[agent]=[next_v]
         self.add_e_obstacle(self.clock+1,curr_v,next_v)
-        self.add_v_obstacle(self.clock+1,curr_v)
+        self.add_v_obstacle(self.clock+1,next_v)
+        if curr_v in self.location_id:
+            self.location_id.pop(curr_v)
     
     def move_agent(self,agent,direction=None):
         if agent is None:
@@ -302,7 +351,7 @@ class highDensityRetrieval(object):
                 else:
                     self.planned.add(agent)
                 
-                    self.location_id.pop(v)
+                    # self.location_id.pop(v)
                     # print(agent,"moved to",next_v)
                     self.forward_agent(agent,v,next_v)
                     # self.plans[agent]=[next_v]
@@ -354,7 +403,7 @@ class highDensityRetrieval(object):
                 if self.get_edge_obstacle(v,next_v) not in e_obs and next_v not in self.reserved_slots:
                     self.forward_agent(agent,v,next_v)
                     # self.plans[agent]=[]
-                    self.location_id.pop(v)
+                    # self.location_id.pop(v)
                     # self.planned.add(agent)
                     # print(agent,"at",v,"unlabeled moved to ",(v[0]-1,v[1]),left_agent)
                     return True
@@ -366,7 +415,7 @@ class highDensityRetrieval(object):
                 if self.get_edge_obstacle(v,next_v) not in e_obs and next_v not in self.reserved_slots:
                     self.forward_agent(agent,v,next_v)
                     # self.plans[agent]=[(v[0]+1,v[1])]
-                    self.location_id.pop(v)
+                    # self.location_id.pop(v)
                     # self.planned.add(agent)
                     # print(agent,"at",v,"unlabeled moved to ",(v[0]+1,v[1]),right_agent)
                     return True
@@ -379,7 +428,10 @@ class highDensityRetrieval(object):
 
 
 if __name__=="__main__":
-    problem=OneShotInstance("./demo/demo_only_retrieval.json")
+    # problem=OneShotInstance("./demo/demo_only_retrieval.json")
+    # problem=OneShotInstance("./demo/demo_parking.json")
+    problem=OneShotInstance("./demo//demo_parking_retrieval.json")
+    # problem=OneShotInstance("./demo//demo_retrieve_one_car.json")
     solver=highDensityRetrieval(problem)
     solver.run()
     

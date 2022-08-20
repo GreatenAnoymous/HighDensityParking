@@ -28,6 +28,7 @@ class Agent(object):
         self.plan=[]
         self.goal=goal
         self.id=id
+        self.tmp_goal=None
 
 
 
