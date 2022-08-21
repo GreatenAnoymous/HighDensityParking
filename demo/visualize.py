@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 import json
+from tracemalloc import start
 
 from matplotlib.patches import Circle, Rectangle, Arrow
 from matplotlib.collections import PatchCollection
@@ -141,6 +142,7 @@ class Animation:
                 ci=ORANGE
                 
             #name = d["name"]
+            name=str(i)
             starti=self.paths[i][0]
             # self.agents[i] = Circle((starti[0], starti[1]), 0.5, facecolor=ci, edgecolor='black',linewidth=3)
          
@@ -148,11 +150,11 @@ class Animation:
             self.agents[i].original_face_color = self.colors[i%len(self.colors)]
             self.patches.append(self.agents[i])
             self.T = max(self.T, len(self.paths[i])-1)
-            #self.agent_names[name] = self.ax.text(d["start"][0], d["start"][1], name.replace('Robot', ''),fontsize=10)
-            # self.agent_names[i] = self.ax.text(starti[0], starti[1], str(i+1),fontsize=100,color="white")
-            # self.agent_names[i].set_horizontalalignment('center')
-            # self.agent_names[i].set_verticalalignment('center')
-            # self.artists.append(self.agent_names[i])
+            # self.agent_names[name] = self.ax.text(starti[0], starti[1], name,fontsize=10)
+            self.agent_names[i] = self.ax.text(starti[0], starti[1], str(i),fontsize=10,color="white")
+            self.agent_names[i].set_horizontalalignment('center')
+            self.agent_names[i].set_verticalalignment('center')
+            self.artists.append(self.agent_names[i])
         print("agents created!")
 
         # self.ax.set_axis_off()
@@ -208,6 +210,7 @@ class Animation:
             p = (pos[0], pos[1])
             #self.agents[k].center = p
             self.agents[k].set_xy((p[0]-0.5,p[1]-0.5))
+            self.agent_names[k].set_position(p)
            
         return self.patches + self.artists
     

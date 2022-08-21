@@ -231,5 +231,6 @@ class TimedSpaceAstarPlus(object):
                     continue
                 childNode=AStarNode(nbr,t1+manhattan_distance(nbr,self.goal),t1,best)
                 openList.put(childNode)
-        # print("Failed to find a solution")
+        print("Failed to find a solution")
+   
         return None

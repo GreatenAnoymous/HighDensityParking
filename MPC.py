@@ -360,8 +360,6 @@ class BCPRSolver(object):
             # print("will this be called?")
               
         if (direction is None or direction==second_direc):
-          
-          
             next_v=(xa+sdx,ya)
             if next_v not in self.location_id and (next_v[0]>=0 and next_v[0]<self.instance.xmax):
                 self.forward(agent,(xa,ya),next_v)
@@ -379,7 +377,7 @@ class BCPRSolver(object):
         
         
 if __name__=="__main__":
-    problem=OneShotInstance("./demo/demo_only_retrieval.json")
+    problem=OneShotInstance("./demo/demo_parking_retrieval.json")
     solver=BCPRSolver(problem)
     solver.solve()
     paths=[]
