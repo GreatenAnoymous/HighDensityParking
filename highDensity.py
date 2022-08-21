@@ -58,7 +58,7 @@ class highDensityRetrieval(object):
     def count_num_robots_at_row(self,row):
         num=0
         for i in range(0,self.instance.xmax):
-            if (i,row) in self.id_location:
+            if (i,row) in self.old_location_id:
                 num=num+1
         return num
 
@@ -187,7 +187,7 @@ class highDensityRetrieval(object):
     def bring_escort_to_port(self,escort:Tuple[int,int],curr:Tuple[int,int]):
         xe,ye=escort
         yc=self.instance.ymax-3
-        assert(xe==curr[0])
+        # assert(xe==curr[0])
         ys=ye
         while ys<yc:
             ys=ys+1
