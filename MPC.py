@@ -227,10 +227,11 @@ class BCPRSolver(object):
             json.dump(sol,fp)
 
     def solve(self):
-        for agent in self.retrieving_agents:
-            self.RetrieveMp(agent.id)
         for agent in self.parking_agents:
             self.ParkingMp(agent)
+        for agent in self.retrieving_agents:
+            self.RetrieveMp(agent.id)
+        
         print("solved")
         self.save_as_json("./demo/single.json")
 
@@ -509,7 +510,7 @@ class BCPRSolver(object):
         
         
 if __name__=="__main__":
-    problem=OneShotInstance("./demo/demo_parking_retrieval.json")
+    problem=OneShotInstance("./demo/large_parking_retrieval.json")
     solver=BCPRSolver(problem)
     solver.solve()
     paths=[]
