@@ -179,6 +179,7 @@ class BCPRSolver(object):
         self.agents=[]
         self.clock=1
         self.location_id=dict()
+        # self.old_location_id=dict()
         self.parking_agents=[]
         self.retrieving_agents=[]
         # self.entangled_agents=set()
@@ -226,15 +227,147 @@ class BCPRSolver(object):
             json.dump(sol,fp)
 
     def solve(self):
+        for agent in self.parking_agents:
+            self.ParkingMp(agent)
         for agent in self.retrieving_agents:
             self.RetrieveMp(agent.id)
+        
         print("solved")
         self.save_as_json("./demo/single.json")
+
+
+    def count_num_robots_at_row(self,row):
+        num=0
+        for i in range(0,self.instance.xmax):
+            if (i,row) in self.location_id:
+                num=num+1
+        return num
+
+     # find an empty slot at the same cplumn
+    def find_empty_slot_at_column(self,current_pos):
+        xc,yc=current_pos
+        for y in range(self.instance.ymax-3,-1,-1):
+            if (xc,y) not in self.location_id:
+                return (xc,y)
+        return None
+
+    # find the an empty slot for parking
+    def find_empty_slot(self,current_pos):
+        xc,yc=current_pos
+        for y in range(self.instance.ymax-3,-1,-1):
+            if self.count_num_robots_at_row(y)>=self.instance.xmax-2:
+                continue
+            open=[(xc,y)]
+            visited=set()
+            while len(open)!=0:
+                curr=open.pop(0)
+                visited.add(curr)
+                if curr not in self.location_id:
+                    # self.used_empty_slots.add(curr)
+                    return curr
+                right=(curr[0]+1,curr[1])
+                if right[0]<self.instance.xmax-1 and right not in visited:
+                    open.append(right)
+                left=(curr[0]-1,curr[1])
+                if left[0]>=1 and left not in visited:
+                    open.append(left)
+        return None
+
+    #bring an escort to column 
+    def bring_escort_to_column(self,escort:Tuple[int,int],desired_column:int):
+        xe,ye=escort
         
+        if xe==desired_column:
+            return
+        if xe<desired_column:
+            dx=1
+        elif xe>desired_column:
+            dx=-1
+        curr=xe
+        # curr=xe+dx
+        while curr!=desired_column:
+            #parking first
+            print((curr,ye),desired_column,"bring to escort")
+            # print((curr,xe))
+            if (curr+dx,ye) not in self.location_id:
+                print((curr+dx,ye), "not in dict")
+                return 
+            robot=self.location_id[(curr+dx,ye)]
+            # if robot in self.planned:
+            #     print(robot,"already planned line 162")
+            #     return 
+            next_v=(curr,ye)
+            # if self.clock+1 in self.v_table and next_v in self.v_table[self.clock+1]:
+            #     print("collisions",(curr+dx,ye),"to",next_v,"already occupied")
+            #     return
+            self.forward(robot,(curr+dx,ye),next_v)
+            curr=curr+dx
+            # print("curr=",curr)
+            # self.plans[robot]=[()]
+            # self.planned.add(robot)
+
+
+
+    def bring_escort_to_port(self,escort:Tuple[int,int],curr:Tuple[int,int]):
+        xe,ye=escort
+        yc=self.instance.ymax-3
+        assert(xe==curr[0])
+        ys=ye
+        while ys<yc:
+            ys=ys+1
+            # if (xe,ys) not in self.location_id:
+            #     print(escort,(xe,ys),(xe,ys) in self.used_empty_slots)
+            # assert((xe,ys) in self.location_id)
+            if (xe,ys) not in self.location_id:
+                return False
+            robot=self.location_id[(xe,ys)]
+            # if robot in self.planned:
+            #     return False
+            next_v=(xe,ys-1)
+            # if (self.clock+1) in self.v_table and next_v in self.v_table[self.clock+1]:
+            #     return False
+            self.forward(robot,(xe,ys),next_v)
+        return True
 
     def ParkingMp(self,agent:Agent):
-        
-        pass
+        curr=agent.loc
+   
+        if curr in self.instance.all_slots:
+            return
+        escort=self.find_empty_slot_at_column(curr)
+        if escort is None:
+            escort=self.find_empty_slot(curr)
+            if escort is not None:
+                print("the escort X is", escort,"for agent ",agent.id,"at",curr)
+                self.bring_escort_to_column(escort,curr[0])
+                
+                self.clock=self.clock+1
+                self.fill_paths(self.clock)
+        escort=self.find_empty_slot_at_column(curr)
+        if escort is not None:
+            print("the escort is", escort,"for agent ",agent.id,"at",curr)
+            flag=self.bring_escort_to_port(escort,curr)
+            if flag==True:
+                x,y=curr
+                while y>self.instance.ymax-3:
+                    y=y-1
+                    self.clock=self.clock+1
+                    agent.path.append((x,y))
+                self.location_id.pop(curr)
+                agent.loc=agent.path[-1]
+                self.location_id[agent.loc]=agent.id
+                self.fill_paths(self.clock)
+                # self.plans[agent]=path[1:]
+                # self.reserve_path(path)
+            else:
+                return
+            #plan using timespace A *
+        # elif escort is None:
+        #     escort=self.find_empty_slot(curr)
+        #     if escort is not None:
+        #         print("the escort X is", escort,"for agent ",agent,"at",curr)
+        #         self.bring_escort_to_column(escort,curr[0])
+       
 
     def MoveBack(self,agent:int,reserved:set,dx=None):
         xa,ya=self.agents[agent].loc
@@ -246,9 +379,9 @@ class BCPRSolver(object):
             else:
                 self.outOfBoundAgents.remove(agent)
                 return False
-        print("debug",(xa,ya),dx,agent in self.outOfBoundAgents,"agent=",agent)
+        # print("debug",(xa,ya),dx,agent in self.outOfBoundAgents,"agent=",agent)
         next_v=(xa+dx,ya)
-        print("?????")
+        # print("?????")
         if next_v not in self.location_id and next_v not in reserved:
             self.forward(agent,(xa,ya),next_v)
         elif next_v in self.location_id:
@@ -360,8 +493,6 @@ class BCPRSolver(object):
             # print("will this be called?")
               
         if (direction is None or direction==second_direc):
-          
-          
             next_v=(xa+sdx,ya)
             if next_v not in self.location_id and (next_v[0]>=0 and next_v[0]<self.instance.xmax):
                 self.forward(agent,(xa,ya),next_v)
@@ -379,7 +510,7 @@ class BCPRSolver(object):
         
         
 if __name__=="__main__":
-    problem=OneShotInstance("./demo/demo_only_retrieval.json")
+    problem=OneShotInstance("./demo/large_parking_retrieval.json")
     solver=BCPRSolver(problem)
     solver.solve()
     paths=[]

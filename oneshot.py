@@ -30,7 +30,10 @@ class OneShotInstance(object):
         self.ymax=system_info["ymax"]
         self.all_slots=[tuple(v) for v in system_info["ParkingSlots"]]
         self.io_ports=[tuple(v) for v in system_info["IOports"]]
-        self.wellformed_slots=[tuple(v) for v in system_info["WellformedSlots"]]
+        try:
+            self.wellformed_slots=[tuple(v) for v in system_info["WellformedSlots"]]
+        except:
+            pass
         self.parking_agents=[]
         self.already_parked_agents=[]
         
