@@ -23,12 +23,20 @@ def manhattan_distance(v1:Tuple[int,int], v2:Tuple[int,int]):
 class Agent(object):
     def __init__(self,loc=None,goal=None,id=None):
         self.loc=loc
+        self.future_loc=loc
         self.priority=None
-        self.path=[]
+        self.path=[loc]
         self.plan=[]
         self.goal=goal
         self.id=id
         self.tmp_goal=None
+        self.state=None
+    
+    def get_next_v(self):
+        if len(self.plan)==0:
+            return self.loc
+        else:
+            return self.plan[0]
 
 
 
