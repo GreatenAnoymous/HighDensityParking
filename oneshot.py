@@ -1,4 +1,3 @@
-from cgi import test
 from os import system
 from common import *
 

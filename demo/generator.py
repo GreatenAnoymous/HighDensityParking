@@ -224,7 +224,29 @@ def parking_and_retrieval():
     with open(file_name,"w") as fp:
         json.dump(data_dict,fp)
 
+def large_parking_and_retrieval():
+    file_name="./large_parking_retrieval.json"
+    data_dict=dict()
+    xmax=12
+    ymax=12
+    num_retrieval=4
+    num_parking=4
+    data_dict["xmax"]=xmax
+    data_dict["ymax"]=ymax
+    data_dict["num_retrieval"]=num_retrieval
+    data_dict["num_parking"]=num_parking
+    data_dict["IOports"]=[(x,ymax-1) for x in range(1,xmax-1)]
 
+    data_dict["ParkingSlots"]=[(x,y) for x in range(1,xmax-1) for y in range(0,ymax-2)]
+    # data_dict["WellformedSlots"]=[(x,y) for x in range(1,9) for y in range(0,6) if x %3!=0]
+    retrieval_starts,retrieval_goals,parking_starts,other_starts=generate_random_instance(data_dict["ParkingSlots"],data_dict["IOports"],data_dict["num_retrieval"],data_dict["num_parking"],int(len(data_dict["ParkingSlots"])-data_dict["num_retrieval"]-data_dict["num_parking"]))
+    print(len(retrieval_starts),len(retrieval_goals),len(other_starts))
+    data_dict["retrieval_starts"]=retrieval_starts
+    data_dict["retrieval_goals"]=retrieval_goals
+    data_dict["parking_starts"]=parking_starts
+    data_dict["other_starts"]=other_starts
+    with open(file_name,"w") as fp:
+        json.dump(data_dict,fp)
 
 
 
@@ -238,5 +260,6 @@ if __name__=="__main__":
     # full_only_retrieval_one()
     # generate_debug_demo()
     # parking_test()
-    parking_and_retrieval()
+    # parking_and_retrieval()
+    large_parking_and_retrieval()
     # high_density_demo()

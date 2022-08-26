@@ -87,13 +87,13 @@ class MPC(object):
             for agent in range(len(self.original_paths)):
                 self.move(agent)
             print()
-        sol=dict()
+        # sol=dict()
     
         
-        sol["paths"]=self.plans
+        # sol["paths"]=self.plans
         
-        with open("./demo/mpc.json","w") as fp:
-            json.dump(sol,fp)
+        # with open("./demo/mpc.json","w") as fp:
+        #     json.dump(sol,fp)
 
     def forward_agent(self,agent,curr_v,next_v):
         if self.location_id[curr_v]==agent:

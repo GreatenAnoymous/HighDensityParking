@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 import json
-from tracemalloc import start
+
 
 from matplotlib.patches import Circle, Rectangle, Arrow
 from matplotlib.collections import PatchCollection
@@ -15,7 +15,7 @@ from ast import literal_eval as make_tuple
 
 from scipy.misc import face
 plt.rcParams["font.family"] = "Times New Roman"
-scale=20
+scale=5
 #Colors = ['orange']#, 'blue', 'green']
 PURPLE=(102/255.,0,255/255.)
 BLUE=(0.0,193.0/255.0,232.0/255.)
@@ -170,7 +170,7 @@ class Animation:
                                     blit=True,repeat=False)
         #self.show()
         # FFwriter = animation.FFMpegWriter(fps=10)
-        # self.anim.save('one_car_path.mp4',fps=20)
+        self.anim.save('one_shot_demo.mp4',fps=20)
 	
 	
 
