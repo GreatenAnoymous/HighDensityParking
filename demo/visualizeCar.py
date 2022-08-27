@@ -1,19 +1,18 @@
 #!/usr/bin/env python3
 import json
-from tracemalloc import start
-
+import matplotlib.image as mgimg
 from matplotlib.patches import Circle, Rectangle, Arrow
-from matplotlib.collections import PatchCollection
 import matplotlib.pyplot as plt
 import numpy as np
 from matplotlib import animation
-import matplotlib.animation as manimation
 import argparse
 import math
 import os
-from ast import literal_eval as make_tuple
 
-from scipy.misc import face
+
+
+PNG_NAME="./car.png"
+
 plt.rcParams["font.family"] = "Times New Roman"
 scale=10
 #Colors = ['orange']#, 'blue', 'green']
@@ -41,6 +40,14 @@ def dist(v1,v2):
 	
 
 class Animation:
+
+    def create_car(self,ax,curr):
+        img = mgimg.imread(PNG_NAME)
+        # imobj=mgimg.AxesImage(ax,extent=[curr[0]-0.5, curr[0]+0.5,curr[1]-0.5, curr[1]+0.5])
+        imobj = ax.imshow(img,extent=[curr[0]-0.5, curr[0]+0.5,curr[1]-0.5, curr[1]+0.5])
+        return imobj
+
+
     def __init__(self,system_info, sol_info):
         self.map_sizeX = system_info["xmax"]
         self.map_sizeY= system_info["ymax"]
@@ -77,9 +84,10 @@ class Animation:
         self.ax = self.fig.add_subplot(111, aspect=0.5)
         self.fig.subplots_adjust(left=0,right=1,bottom=0,top=1, wspace=None, hspace=None)
         # self.ax.set_frame_on(False)
-
+        # adjustFigAspect(self.fig,aspect=.5)
         self.patches = []
         self.artists = []
+        self.carImages=[]
         self.agents = dict()
         self.agent_names = dict()
         # create boundary patch
@@ -126,15 +134,18 @@ class Animation:
             starti=self.paths[i][0]
             # self.agents[i] = Circle((starti[0], starti[1]), 0.5, facecolor=ci, edgecolor='black',linewidth=3)
          
-            self.agents[i] = Rectangle((starti[0]-0.5, starti[1]-0.5), 1,1, facecolor=ci, edgecolor='black',linewidth=3)
-            self.agents[i].original_face_color = self.colors[i%len(self.colors)]
-            self.patches.append(self.agents[i])
+            # self.agents[i] = Rectangle((starti[0]-0.5, starti[1]-0.5), 1,1, facecolor=ci, edgecolor='black',linewidth=3)
+            self.agents[i]=self.create_car(self.ax,(-10,-10))
+            # self.agents[i].original_face_color = self.colors[i%len(self.colors)]
+            # self.patches.append(self.agents[i])
+            self.carImages.append(self.agents[i])
             self.T = max(self.T, len(self.paths[i])-1)
             # self.agent_names[name] = self.ax.text(starti[0], starti[1], name,fontsize=10)
-            self.agent_names[i] = self.ax.text(starti[0], starti[1], str(i),fontsize=10,color="white")
-            self.agent_names[i].set_horizontalalignment('center')
-            self.agent_names[i].set_verticalalignment('center')
-            self.artists.append(self.agent_names[i])
+            # self.agent_names[i] = self.ax.text(starti[0], starti[1], str(i),fontsize=10,color="white")
+            # self.agent_names[i].set_horizontalalignment('center')
+            # self.agent_names[i].set_verticalalignment('center')
+            # self.artists.append(self.agent_names[i])
+        print(len(self.carImages))
         print("agents created!")
 
         # self.ax.set_axis_off()
@@ -171,6 +182,8 @@ class Animation:
         plt.show()
 
     def init_func(self):
+        # self.ax.clear()
+        self.ax.set_aspect(0.5)
         for p in self.patches:
             self.ax.add_patch(p)
         # for i,p in self.package_plot.items():
@@ -179,7 +192,7 @@ class Animation:
         for a in self.artists:
             self.ax.add_artist(a)
         # self.next_goal_id=[0 for i in range(self.num_robots)] 
-        return self.patches + self.artists#+list(self.package_plot.values())
+        return self.patches + self.artists+self.carImages#+list(self.package_plot.values())
 
     def animate_func(self, i):
         for k in range(0,len(self.paths)):
@@ -189,10 +202,12 @@ class Animation:
             pos = self.getState(i / scale, path)
             p = (pos[0], pos[1])
             #self.agents[k].center = p
-            self.agents[k].set_xy((p[0]-0.5,p[1]-0.5))
-            self.agent_names[k].set_position(p)
-           
-        return self.patches + self.artists
+            # self.agents[k].set_xy((p[0]-0.5,p[1]-0.5))
+            # print([p[0]-0.5,p[0]+0,5,p[1]-0.5,p[1]+0.5])
+            self.agents[k].set_extent([p[0]-0.5,p[0]+0.5,p[1]-0.5,p[1]+0.5])
+            # self.agent_names[k].set_position(p)
+        return self.carImages+self.patches+self.artists
+        # return self.patches + self.artists
     
     
     def animate_func_lifelong(self,i):

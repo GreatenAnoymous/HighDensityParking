@@ -43,7 +43,7 @@ class onlineMCP(object):
         self.parked_agents=[]
         # self.retrieving_agents=[]
         self.parking_probability=0.6
-        self.retrieving_probability=0.1
+        self.retrieving_probability=0.01
         self.agents=[]
         self.moved=dict()
         self.v_obs=set()
@@ -569,14 +569,14 @@ class onlineMCP(object):
             for y in range(self.ymax):
                 self.vertices[(x,y)]=Vertex(x,y)
 
-        # data_dict=dict()
-        # file_name="./demo/system_info.json"
-        # data_dict["xmax"]=self.xmax
-        # data_dict["ymax"]=self.ymax
-        # data_dict["IOports"]=self.io_ports
-        # data_dict["ParkingSlots"]=self.parking_spots
-        # with open(file_name,"w") as fp:
-        #     json.dump(data_dict,fp)
+        data_dict=dict()
+        file_name="./demo/system_info.json"
+        data_dict["xmax"]=self.xmax
+        data_dict["ymax"]=self.ymax
+        data_dict["IOports"]=self.io_ports
+        data_dict["ParkingSlots"]=self.parking_spots
+        with open(file_name,"w") as fp:
+            json.dump(data_dict,fp)
 
 
     def check_perpendicular(self,v1,v2,v3):
@@ -599,7 +599,7 @@ class onlineMCP(object):
             json.dump(data_dict,fp)
         
 if __name__=="__main__":
-    test_system=onlineMCP(10,10)
+    test_system=onlineMCP(20,20)
     test_system.sim()
     test_system.save_paths_as_json("./demo/online_mcp.json")
     pass
