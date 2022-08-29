@@ -1,5 +1,3 @@
-
-from locale import currency
 from common import *
 
 
@@ -24,8 +22,7 @@ class Vertex(object):
 #         for agent,schedule in parking_info.items():
 #             parking_time=self.
 
-       
-           
+
 
 class onlineMCP(object):
     def __init__(self,xmax,ymax):
@@ -200,7 +197,7 @@ class onlineMCP(object):
                 num=num+1
         return num
 
-     # find an empty slot at the same cplumn
+    # find an empty slot at the same cplumn
     def find_empty_slot_at_column(self,current_pos):
         xc,yc=current_pos
         for y in range(self.ymax-3,-1,-1):
@@ -253,7 +250,7 @@ class onlineMCP(object):
             next_v=(curr,ye)
             self.forwardMP(robot,(curr+dx,ye),next_v)
             curr=curr+dx
-   
+
 
 
 
@@ -306,9 +303,8 @@ class onlineMCP(object):
 
     def RetrieveMp(self,agent:int):
         ai=self.agents[agent]
-   
+
         while ai.future_loc!=ai.goal:
-          
             if ai.future_loc[1]<self.ymax-2:
                 next_v=(ai.future_loc[0],ai.future_loc[1]+1)
                 if next_v not in self.future_location_id:
@@ -341,7 +337,6 @@ class onlineMCP(object):
                 aj=self.future_location_id[(0,y)]
                 currX=0
                 while aj is not None:
-              
                     next_v=(currX+1,y)
                     print("moving ",aj,"back",next_v)
                     if next_v in self.future_location_id:
@@ -365,9 +360,7 @@ class onlineMCP(object):
                     # assert(currX-1>=0)
                     self.forwardMP(aj,(currX,y),next_v)
                     aj=next_a
-                  
                     currX=currX-1
-                   
                 # self.future_location_id[ai.future_loc]=ai.id
 
     def mcp_move(self,agent):

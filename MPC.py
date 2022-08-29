@@ -1,12 +1,8 @@
-from pickle import FALSE
-from tkinter.tix import MAX
-from turtle import right
-from types import TracebackType
 from common import *
 from search import AStarSearch
 from oneshot import OneShotInstance
 
-MAX_HORIZON=500
+MAX_HORIZON=10000
 
 class Vertex(object):
     def __init__(self,x,y):
@@ -87,19 +83,18 @@ class MPC(object):
             for agent in range(len(self.original_paths)):
                 self.move(agent)
             print()
-        # sol=dict()
+        sol=dict()
     
         
-        # sol["paths"]=self.plans
+        sol["paths"]=self.plans
         
-        # with open("./demo/mpc.json","w") as fp:
-        #     json.dump(sol,fp)
+        with open("./demo/mpc.json","w") as fp:
+            json.dump(sol,fp)
 
     def forward_agent(self,agent,curr_v,next_v):
         if self.location_id[curr_v]==agent:
             self.location_id.pop(curr_v)
         self.location_id[next_v]=agent
-   
         self.original_paths[agent].pop(0)
         self.vertices[next_v].visiting_agents.pop(0)
         self.moved[agent]=True

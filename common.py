@@ -45,6 +45,8 @@ def compress_paths(paths):
     for p in paths:
         while len(p)>=2 and p[-1]==p[-2]:
             p.pop()
+        if len(p)>=2:
+            assert(p[-1]!=p[-2])
 
 
 def evaluate_paths(paths,num_retrieval=None):
