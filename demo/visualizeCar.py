@@ -11,7 +11,7 @@ import os
 
 
 
-PNG_NAME="./car.png"
+PNG_NAME="./car.jpg"
 
 plt.rcParams["font.family"] = "Times New Roman"
 scale=5
