@@ -217,6 +217,14 @@ def exp_scalibility_density():
     
 
 
+def generate_demo():
+    problem=OneShotInstance("./demo/large_parking_retrieval.json")
+    paths=BCPR_solve(problem)
+    data_dict=dict()
+    data_dict["paths"]=paths
+    with open("./demo/mcp.json","w") as fp:
+        json.dump(data_dict,fp)
+
 
 def exp_scalibility_density_single():
     xmax=20
@@ -270,6 +278,7 @@ def exp_scalibility_density_single():
 if __name__=="__main__":
     # exp_scalibility_density()
     # exp_scalibility_grid_size_single()
-    exp_scalibility_density_single()
+    # exp_scalibility_density_single()
+    generate_demo()
     
     

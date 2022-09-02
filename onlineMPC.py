@@ -1,8 +1,9 @@
+from numpy import average
 from common import *
+from statistics import mean
 
-
-MAX_HORIZON=100
-OUTVERTEX=(0,20)
+MAX_HORIZON=200
+OUTVERTEX=(-20,20)
 PARKING=0
 RETRIEVING=1
 
@@ -34,6 +35,7 @@ class onlineMCP(object):
         self.occupied_port=set()
         self.unused_agents=[]
         self.used_agents=[]
+        self.retrieval_request=dict()
         # self.parking_agents=[]
         self.new_parking_agents=[]
         self.new_retrieving_agents=[]
@@ -45,12 +47,35 @@ class onlineMCP(object):
         self.moved=dict()
         self.v_obs=set()
         self.vertices=dict()
-        self.init_system()
+        # self.init_system()
+        # self.init_full_system()
+        self.init_system_only_retrieval("./demo/demo_shuffle/shuffled_config.json")
         self.clock=0
-        f1=open("./demo/recording.json")
-        self.recording=json.load(f1)
+        self.time_counter=dict()
+        self.retrival_time_data=[]
+        self.parking_time_data=[]
+        self.distance_data=[0 for a in self.agents]
+
+        # f1=open("./demo/recording.json")
+        # self.recording=json.load(f1)
         # self.recording=dict()
-        
+    
+    def check_all_retrieved(self):
+        for agent in self.agents:
+            if agent.loc!=OUTVERTEX:
+                return False
+        return True
+    
+    def init_full_system(self):
+        for i,slot in enumerate(self.parking_spots):
+            self.agents[i].loc=slot
+            self.agents[i].path[-1]=slot
+            self.agents[i].future_loc=slot
+            self.parked_agents.append(self.agents[i].id)
+            self.future_location_id[slot]=self.agents[i].id
+            self.location_id[slot]=self.agents[i].id
+            self.unused_agents.clear()
+            
     
 
 
@@ -71,8 +96,32 @@ class onlineMCP(object):
             if len(self.agents[agent].plan)==0:
                 return self.agents[agent].path[-1]
             return self.agents[agent].plan[0]
+        
 
 
+    
+    def init_configuration(self,config_file):
+        f1=open("./demo/recording.json")
+        data_dict=json.load(f1)
+        self.io_ports=data_dict["io_ports"]
+        for x in range(1,self.xmax-1):
+            self.io_ports.append((x,self.ymax-1))
+    
+        #parking spots
+        self.parking_spots=[]
+        for x in range(1,self.xmax-1):
+            for y in range(0,self.ymax-2):
+                self.parking_spots.append((x,y))
+
+        # unused agents
+        self.agents=[Agent(OUTVERTEX,None,i) for i in range(len(self.parking_spots))]
+        self.unused_agents=[agent.id for agent in self.agents]
+        # vertices and visiting orders
+        for x in range(self.xmax):
+            for y in range(self.ymax):
+                self.vertices[(x,y)]=Vertex(x,y)
+        
+        
     def generate_new_request_nonrandom(self):
         dataT=self.recording[str(self.clock)]
         for data in dataT["retrieval"]:
@@ -114,7 +163,6 @@ class onlineMCP(object):
             #     self.occupied_port.add(port)
             #     ak.state=RETRIEVING
             #     data["retrieval"].append((port[0],port[1],ak.id))
-               
             #     #retrieve a car
             # elif eta<self.retrieving_probability+self.parking_probability and len(self.unused_agents)!=0:
             #     num_p=len(self.unused_agents)
@@ -138,9 +186,10 @@ class onlineMCP(object):
 
 
     def generate_new_request(self):
-        data=dict()
-        data["retrieval"]=[]
-        data["parking"]=[]
+        # data=dict()
+        # data["retrieval"]=[]
+        # data["parking"]=[]
+        r_agents=[]
         available_ports=[port for port in self.io_ports if port not in self.occupied_port]
         if len(available_ports)==0:
             print("No avaiable ports")
@@ -151,20 +200,23 @@ class onlineMCP(object):
                 k=np.random.randint(num_p)
                 ak=self.agents[self.parked_agents[k]]
                 ak.goal=port
+                r_agents.append(ak.id)
+                
                 print("retrieving car",ak.id,"to port",port)
                 self.new_retrieving_agents.append(ak)
                 self.parked_agents.pop(k)
                 self.occupied_port.add(port)
+                self.time_counter[ak.id]=self.clock
                 ak.state=RETRIEVING
-                data["retrieval"].append((port[0],port[1],ak.id))
-               
+                # data["retrieval"].append((port[0],port[1],ak.id))
+
                 #retrieve a car
             elif eta<self.retrieving_probability+self.parking_probability and len(self.unused_agents)!=0:
                 num_p=len(self.unused_agents)
                 k=np.random.randint(num_p)
                 ak=self.agents[self.unused_agents[k]]
                 assert(ak.loc==OUTVERTEX)
-                print("parking car",ak.id,"from port",port)
+                # print("parking car",ak.id,"from port",port)
                 ak.loc=port
                 ak.goal=port
                 ak.future_loc=port
@@ -172,11 +224,13 @@ class onlineMCP(object):
                 ak.path[-1]=port
                 self.location_id[ak.loc]=ak.id
                 self.future_location_id[ak.loc]=ak.id
+                self.time_counter[ak.id]=self.clock
                 self.new_parking_agents.append(ak)
                 self.unused_agents.pop(k)
-                data["parking"].append((port[0],port[1],ak.id))
+                # data["parking"].append((port[0],port[1],ak.id))
                 self.occupied_port.add(port)
-        self.recording[self.clock]=data
+        self.retrieval_request[self.clock]=r_agents
+        # self.recording[self.clock]=data
 
 
     def sequential_planning(self):
@@ -317,7 +371,6 @@ class onlineMCP(object):
                     self.YieldMp(aj)          
             else:
                 x,y=ai.future_loc
-                
                 self.future_location_id.pop((x,y))
                 xg,yg=ai.goal
                 if x<xg:
@@ -375,6 +428,7 @@ class onlineMCP(object):
                 self.location_id.pop(ai.loc)
                 ai.loc=OUTVERTEX
                 ai.future_loc=OUTVERTEX
+                
                 ai.path.append(ai.loc)
                 ai.state=None
                 self.unused_agents.append(ai.id)
@@ -382,6 +436,7 @@ class onlineMCP(object):
                 # self.used_agents.remove(ai.id)
                 # print("DEBUG",self.parked_agents,ai.id)
                 # self.parked_agents.remove(ai.id)
+                self.retrival_time_data.append(self.clock-self.time_counter[ai.id])
                 return True
                 
             self.wait_agent(agent,ai.loc)
@@ -389,7 +444,7 @@ class onlineMCP(object):
         ai=self.agents[agent]
         next_v=ai.plan[0]
         curr_v=ai.loc
-       
+
         # print("next v is ",next_v)
         if agent==self.vertices[next_v].visiting_agents[0]:
             
@@ -472,7 +527,7 @@ class onlineMCP(object):
                     self.forwardMP(agent,(xa,ya),next_v)
                     return True
             # print("will this be called?")
-              
+
         if (direction is None or direction==second_direc):
             next_v=(xa+sdx,ya)
             if next_v not in self.future_location_id and (next_v[0]>=0 and next_v[0]<self.xmax):
@@ -499,6 +554,7 @@ class onlineMCP(object):
         self.moved[agent]=True
         self.agents[agent].path.append(next_v)
         self.v_obs.add(next_v)
+        self.distance_data[agent]=self.distance_data[agent]+1
 
     def wait_agent(self,agent,curr_v):
         self.moved[agent]=False
@@ -516,7 +572,7 @@ class onlineMCP(object):
                 xc,yc=self.agents[agent].loc
                 if yc<=self.ymax-3:
                     self.agents[agent].state=None
-                    
+                    self.parking_time_data.append(self.clock-self.time_counter[agent])
                     self.occupied_port.remove(self.agents[agent].goal)
                     self.agents[agent].goal=None
                     self.parked_agents.append(agent)
@@ -525,24 +581,27 @@ class onlineMCP(object):
     def sim(self):
         while True:
             self.clock=self.clock+1
-            print("debug",self.agents[2].loc,self.agents[2].plan,self.vertices[(2,3)].visiting_agents,"agent4",self.agents[4].loc,self.agents[4].plan,(2,3) in self.future_location_id)
-            print("*************************\n")
+            # print("debug",self.agents[2].loc,self.agents[2].plan,self.vertices[(2,3)].visiting_agents,"agent4",self.agents[4].loc,self.agents[4].plan,(2,3) in self.future_location_id)
+            # print("*************************\n")
             if self.clock>MAX_HORIZON:
                 break
             self.main_loop()
-        with open("./demo/recording.json","w") as fp:
-            json.dump(self.recording,fp)
+            # if self.check_all_retrieved():
+            #     break
+        print("total makespan=",self.clock)
+        # with open("./demo/recording.json","w") as fp:
+        #     json.dump(self.recording,fp)
 
     def main_loop(self):
-        self.generate_new_request()
+        # self.generate_new_request()
+        self.retrieve_car_ordered()
         
         self.sequential_planning()
-        print("BUGGGGG",self.vertices[(2,3)].visiting_agents)
+        # print("BUGGGGG",self.vertices[(2,3)].visiting_agents)
         
         self.mcp_execute()
         
-
-    def init_system(self):
+    def init_spots(self):
         #io ports
         self.io_ports=[]
         for x in range(1,self.xmax-1):
@@ -552,15 +611,71 @@ class onlineMCP(object):
         self.parking_spots=[]
         for x in range(1,self.xmax-1):
             for y in range(0,self.ymax-2):
-               self.parking_spots.append((x,y))
+                self.parking_spots.append((x,y))
+                
+        #
+        for x in range(self.xmax):
+            for y in range(self.ymax):
+                self.vertices[(x,y)]=Vertex(x,y)
+                
+    def get_avg_data(self):
+        average_retrieval_time=mean(self.retrival_time_data)
+        # average_parking_time=mean(self.parking_time_data)
+        average_number_moves=sum(self.distance_data)
+        print("average retrieval time",average_retrieval_time)
+        # print("agerage parking time",average_parking_time)
+        print("average number of moves",average_number_moves)
+        print("makespan",self.clock)
+        
+
+    def init_system_only_retrieval(self,file_name):
+        self.init_spots()
+        f1=open(file_name)
+        data_dict=json.load(f1)
+        agents_list=data_dict["agents"]
+        for agent_dict in agents_list:
+            start=tuple(agent_dict["loc"])
+            id=agent_dict["id"]
+            priority=agent_dict["priority"]
+            ai=Agent(start,None,id)
+            ai.future_loc=start
+            self.future_location_id[start]=ai.id
+            self.location_id[start]=ai.id
+            self.agents.append(ai)
+            self.parked_agents.append(ai.id)
+        self.agents.sort(key=lambda a:a.id)
+        self.parked_agents.sort()
+        # np.random.shuffle(self.parked_agents)
+        
+    def retrieve_car_ordered(self):
+        available_ports=[port for port in self.io_ports if port not in self.occupied_port]
+        if len(available_ports)==0:
+            print("No available ports")
+        for port in available_ports:
+            if len(self.parked_agents)==0:
+                # print("all retrieved")
+                break
+            agent_k=self.parked_agents[-1]
+            self.time_counter[agent_k]=self.clock
+            ak=self.agents[agent_k]
+            ak.goal=port
+            self.new_retrieving_agents.append(ak)
+            self.parked_agents.pop()
+            self.occupied_port.add(port)
+            ak.state=RETRIEVING
+        #prioritization
+        self.new_parking_agents.sort(key=lambda ak:manhattan_distance(ak.loc,ak.goal))
+        
+        
+
+    def init_system(self):
+        self.init_spots()
 
         # unused agents
         self.agents=[Agent(OUTVERTEX,None,i) for i in range(len(self.parking_spots))]
         self.unused_agents=[agent.id for agent in self.agents]
         # vertices and visiting orders
-        for x in range(self.xmax):
-            for y in range(self.ymax):
-                self.vertices[(x,y)]=Vertex(x,y)
+
 
         data_dict=dict()
         file_name="./demo/system_info.json"
@@ -582,17 +697,38 @@ class onlineMCP(object):
         return False
 
     
+    def get_paths(self):
+        paths=[]
+        for agent in self.agents:
+            paths.append(agent.path)
+        return paths
+    
+    def evaluateRT(self):
+        paths=self.get_paths()
+        makespan,makespanLB,sod,sor=evaluate_paths(paths)
+        avt=0
+        for id,re_time in self.retrival_time.items():
+            avt=avt+re_time
+        print("makespan",makespan)
+        print("sod",sod/len(paths))
+        print("sor",sor/len(paths))
+        print("avt",avt/len(paths))
+        
+    
     def save_paths_as_json(self,file_name):
         data_dict=dict()
         sol=[]
         for agent in self.agents:
             sol.append(agent.path)
         data_dict["paths"]=sol
+        data_dict["retrieval_record"]=self.retrieval_request
         with open(file_name,"w") as fp:
             json.dump(data_dict,fp)
         
 if __name__=="__main__":
-    test_system=onlineMCP(20,20)
+    test_system=onlineMCP(22,22)
     test_system.sim()
+    # test_system.get_avg_data()
+    # test_system.evaluateRT()
     test_system.save_paths_as_json("./demo/online_mcp.json")
     pass

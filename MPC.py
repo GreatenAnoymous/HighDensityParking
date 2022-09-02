@@ -32,18 +32,16 @@ class MPC(object):
     def init_schedule(self):
         makespan=len(self.original_paths[0])
         num_robots=len(self.original_paths)
-        for t in range(makespan):
+        for t in range(1,makespan):
             for i in range(num_robots):
+                last_v=self.original_paths[i][t-1]
                 v=self.original_paths[i][t]
                 if v not in self.vertices:
                     self.vertices[v]=Vertex(v[0],v[1])
                 vertex=self.vertices[v]
-                if len(vertex.visiting_agents)==0:
-                    vertex.visiting_agents.append(i)
-                elif vertex.visiting_agents[-1]!=i:
-                    vertex.visiting_agents.append(i)
-        for i in range(num_robots):
-            self.location_id[self.original_paths[i][0]]=i
+                if v!=last_v:
+                    self.vertices[v].visiting_agents.append(i)
+
 
     def remove_waiting_for_one_path(self,path):
         i=0
@@ -64,31 +62,41 @@ class MPC(object):
         for i in range(len(self.original_paths)):
             self.original_paths[i]=self.remove_waiting_for_one_path(self.original_paths[i])
             starti=self.original_paths[i][0]
+            self.location_id[self.original_paths[i][0]]=i
             self.original_paths[i].pop(0)
+
+
     
-            self.vertices[starti].visiting_agents.pop(0)
+            # self.vertices[starti].visiting_agents.pop(0)
+        # print("debug paths")
+        # for i in range(len(self.original_paths)):
+        #     print(i,self.original_paths[i])
+        # print("========!!!!!!")
+        # print()
         
     def mpcSolve(self):
+        
         self.init_schedule()
         self.remove_waiting_status()
+        # self.remove_waiting_status()
         k=0
         while self.check_arrive_goals()==False:
             self.moved.clear()
             self.v_obs.clear()
             self.old_location_id=self.location_id.copy()
             k=k+1
-            print(k,'*****************')
+            # print(k,'*****************')
             if k>MAX_HORIZON:
                 break
             for agent in range(len(self.original_paths)):
                 self.move(agent)
             print()
-        sol=dict()
     
-        
+    def save_plans_as_json(self,file_name):
+        sol=dict()
         sol["paths"]=self.plans
         
-        with open("./demo/mpc.json","w") as fp:
+        with open(file_name,"w") as fp:
             json.dump(sol,fp)
 
     def forward_agent(self,agent,curr_v,next_v):
@@ -123,16 +131,15 @@ class MPC(object):
         return True
 
     def move(self,agent):
-      
         # print("moving agent",agent)
         if agent in self.moved:
             return self.moved[agent]
         if len(self.original_paths[agent])==0:
-         
             self.moved[agent]=False
             return False
         next_v=self.original_paths[agent][0]
         curr_v=self.plans[agent][-1]
+        print(agent,curr_v,next_v,self.vertices[next_v].visiting_agents)
         if agent==self.vertices[next_v].visiting_agents[0]:
             if next_v not in self.old_location_id:
                 if  next_v not in self.v_obs:
@@ -145,7 +152,7 @@ class MPC(object):
                 aj=self.old_location_id[next_v]
                 # print(aj,agent,self.original_paths[aj])
                 # if len(self.original_paths[aj])!=0:
-                print("debug",aj,agent,self.original_paths[aj],self.original_paths[agent])
+                # print("debug",aj,agent,self.original_paths[aj],self.original_paths[agent])
                 # vj=self.original_paths[aj][0]
                 vj=self.get_next_v(aj)
                 flag=self.move(aj)
@@ -153,7 +160,6 @@ class MPC(object):
                     self.wait_agent(agent,curr_v)
                     return False
                 else:
-                 
                     if  self.check_perpendicular(curr_v,next_v,vj)==False and next_v not in self.v_obs:
                         self.forward_agent(agent,curr_v,next_v)
                         return True
@@ -199,7 +205,7 @@ class BCPRSolver(object):
         for agent in self.agents:
             agent.path.append(agent.loc)
         self.agents.sort(key=lambda a:a.id)
-      
+
         print("cars need to be parked num=",len(self.instance.parking_agents))
 
     def fill_paths(self,makespan=-1):
