@@ -14,7 +14,7 @@ import os
 PNG_NAME="./car.jpg"
 
 plt.rcParams["font.family"] = "Times New Roman"
-scale=5
+scale=3
 #Colors = ['orange']#, 'blue', 'green']
 PURPLE=(102/255.,0,255/255.)
 BLUE=(0.0,193.0/255.0,232.0/255.)
@@ -33,7 +33,7 @@ def dist(v1,v2):
 
 
 
-		
+OUTVERTEX=(-10,-10)		
 
 
 
@@ -57,6 +57,10 @@ class Animation:
         self.paths=sol_info["paths"]
         self.stations=system_info["IOports"]
         self.slots=system_info["ParkingSlots"]
+        self.selected_cars=dict()
+        self.retrieval_record=sol_info["retrieval_record"]
+        self.retrieving_agents=set()
+        
         
         # self.packages=dict()
         # self.num_types=warehouse_info["num_types"]
@@ -125,17 +129,16 @@ class Animation:
         #  self.patches.append(Rectangle((goali[0] - 0.25, goali[1] - 0.25), 0.5, 0.5, facecolor=self.colors[i%len(self.colors)], edgecolor='black', alpha=0.15))
         # #self.patches.append(Rectangle((d["goal"][0] - 0.25, d["goal"][1] - 0.25), 0.5, 0.5, facecolor=self.colors[i%len(self.colors)], edgecolor='black', alpha=0.15))
         for i in range(0,self.num_robots):
-            ci=None
-         
             ci=ORANGE
                 
             #name = d["name"]
             name=str(i)
             starti=self.paths[i][0]
             # self.agents[i] = Circle((starti[0], starti[1]), 0.5, facecolor=ci, edgecolor='black',linewidth=3)
-         
             # self.agents[i] = Rectangle((starti[0]-0.5, starti[1]-0.5), 1,1, facecolor=ci, edgecolor='black',linewidth=3)
             self.agents[i]=self.create_car(self.ax,(-10,-10))
+            self.selected_cars[i]=Rectangle(OUTVERTEX, 1,1, facecolor='none', edgecolor='red',linewidth=3)
+            self.patches.append(self.selected_cars[i])
             # self.agents[i].original_face_color = self.colors[i%len(self.colors)]
             # self.patches.append(self.agents[i])
             self.carImages.append(self.agents[i])
@@ -161,7 +164,7 @@ class Animation:
                                     blit=True,repeat=False)
         #self.show()
         # FFwriter = animation.FFMpegWriter(fps=10)
-        # self.anim.save('demo_large.mp4',fps=20)
+        # self.anim.save('morning.mp4',fps=20)
 	
 	
 
@@ -194,12 +197,43 @@ class Animation:
         return self.patches + self.artists+self.carImages#+list(self.package_plot.values())
 
     def animate_func(self, i):
+        if i%scale==0:
+            ti=int(i/scale)
+            if str(ti) in self.retrieval_record:
+                retrieving_agents=self.retrieval_record[str(ti)]
+            else:
+                retrieving_agents=[]
+            for id in retrieving_agents:
+                self.retrieving_agents.add(id)
+        # removed_cars=[]
+        # for id,car in self.selected_cars.items():
+        #     pos=self.getState(i / scale, self.paths[id])
+        #     # print("id",id,pos)
+        #     if abs(pos[1]-11)<1e-3:
+        #         # self.selected_cars.pop(id)
+        #         removed_cars.append(id)
+        #         self.patches.remove(car)
+        #     else:    
+        #         assert(car is not None)
+        #         car.set_xy((pos[0]-0.5,pos[1]-0.5))
+        # for car in removed_cars:
+        #     assert(car in self.selected_cars)
+        #     self.selected_cars.pop(car)
+            
+            
         for k in range(0,len(self.paths)):
             #agent = schedule["schedule"][agent_name]
             path=self.paths[k]
             #pos = self.getState(i / scale, agent)
             pos = self.getState(i / scale, path)
             p = (pos[0], pos[1])
+            if k in self.retrieving_agents.copy():
+                # print("retrieving",k,p[1])
+                if abs(p[1]-11)<1e-2:
+                    self.selected_cars[k].set_xy(OUTVERTEX)
+                    self.retrieving_agents.remove(k)
+                else:
+                    self.selected_cars[k].set_xy((p[0]-0.5,p[1]-0.5))
             #self.agents[k].center = p
             # self.agents[k].set_xy((p[0]-0.5,p[1]-0.5))
             # print([p[0]-0.5,p[0]+0,5,p[1]-0.5,p[1]+0.5])
@@ -208,32 +242,7 @@ class Animation:
         return self.carImages+self.patches+self.artists
         # return self.patches + self.artists
     
-    
-    def animate_func_lifelong(self,i):
-        for k in range(self.num_robots):
-            path=self.paths[k]
-            pos=self.getState(i/scale,path)
-            p=(pos[0],pos[1])
-            # print("current position=",p)
-            self.agents[k].center=p
-            if k in self.package_plot:
-                
-                self.package_plot[k].set_xy((p[0]-0.2,p[1]-0.2))
-            goalk,type=self.get_current_task(k)
-            if dist(p,goalk)<1e-2:
-                self.next_goal_id[k]=self.next_goal_id[k]+1
-                if type!=-1:
-                    self.package_plot[k].remove()
-                    self.package_plot.pop(k)
-                if type==-1:
-                    goalk,type=self.get_current_task(k)
-                    assert(type!=-1)
-                    # print("type=",type)
-                    self.package_plot[k]=Rectangle((p[0]-0.2,p[1]-0.2),0.4,0.4,facecolor=self.type_color[type], edgecolor='black', alpha=1)
-                    self.ax.add_patch(self.package_plot[k])
-                    
-        # print(self.package_plot)
-        return self.patches + self.artists+list(self.package_plot.values())
+
     
     def get_current_task(self,agent_id):
         taski=self.tasks[agent_id][self.next_goal_id[agent_id]]       
