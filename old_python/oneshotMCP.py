@@ -450,7 +450,7 @@ class oneshotMCP(object):
                 break
             self.mcp_execute()
         # self.mcp_execute()
-        self.save_paths_as_json("./demo/mpc.json")
+        self.save_paths_as_json("./demo/small_demo_mcp.json")
         
     def check_perpendicular(self,v1,v2,v3):
         x1,y1=v1
@@ -463,6 +463,6 @@ class oneshotMCP(object):
         
 
 if __name__=="__main__":
-    problem=OneShotInstance("./demo/example.json")
+    problem=OneShotInstance("./demo/small_parking_retrieval.json")
     test_solver=oneshotMCP(problem)
     test_solver.sim()
