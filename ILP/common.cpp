@@ -357,7 +357,7 @@ void format_paths(Paths &paths){
 void evaluate_result2(Paths & paths,double &makespan,double &makespanLB,double &sod,double &sor,int num_retrieval){
     makespan=makespanLB=sod=sor=0;
     format_paths(paths);
-    std::cout<<"evaluate_result2  "<<num_retrieval<<std::endl;
+    // std::cout<<"evaluate_result2  "<<num_retrieval<<std::endl;
     int i=0;
     for(auto &p:paths){
         makespan=std::max(makespan,(double)p.size());
